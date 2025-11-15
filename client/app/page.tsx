@@ -1,4 +1,6 @@
 "use client";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,7 +94,8 @@ export default function LandingPage() {
         // Show current (live) + upcoming events
         const currentAndUpcoming = mapped.filter(
           (e) =>
-            e.date >= nowSec || (e.date <= nowSec && nowSec < e.date + liveWindowSec)
+            e.date >= nowSec ||
+            (e.date <= nowSec && nowSec < e.date + liveWindowSec)
         );
         const latestThree = [...currentAndUpcoming]
           .sort((a, b) => a.date - b.date)
@@ -358,12 +361,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-          <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
-            <p>
-              &copy; 2024 ORAMA. All rights reserved. Built with blockchain
-              technology.
-            </p>
-          </div>
+      <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
+        <p>
+          &copy; 2024 ORAMA. All rights reserved. Built with blockchain
+          technology.
+        </p>
+      </div>
     </div>
   );
 }
