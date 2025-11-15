@@ -172,25 +172,26 @@ export function AdminDashboard() {
     fetchEvents();
   }, [totalEvents, isLoadingCount, eventsReloadKey]);
 
-  // Periodic refresh and listen for cross-page purchase updates
-  useEffect(() => {
-    const id = setInterval(() => {
-      try {
-        refreshCounts();
-      } catch {}
-      setEventsReloadKey((k) => k + 1);
-    }, 15000);
-    const handler = () => setEventsReloadKey((k) => k + 1);
-    try {
-      window.addEventListener("tickets:updated", handler);
-    } catch {}
-    return () => {
-      clearInterval(id);
-      try {
-        window.removeEventListener("tickets:updated", handler);
-      } catch {}
-    };
-  }, []);
+  // // Periodic refresh and listen for cross-page purchase updates
+  // useEffect(() => {
+  //   const id = setInterval(() => {
+  //     try {
+  //       refreshCounts();
+  //     } catch {}
+  //     setEventsReloadKey((k) => k + 1);
+  //   }, 15000);
+  //   const handler = () => setEventsReloadKey((k) => k + 1);
+  //   try {
+  //     window.addEventListener("tickets:updated", handler);
+  //   } catch {}
+
+  //   return () => {
+  //     clearInterval(id);
+  //     try {
+  //       window.removeEventListener("tickets:updated", handler);
+  //     } catch {}
+  //   };
+  // }, []);
 
   return (
     <div className="flex h-screen bg-background">
@@ -596,7 +597,14 @@ function CreateEventForm({ onClose, onAfterCreate }: CreateEventFormProps) {
       }
 
       const dateObj = new Date(`${form.date}T${form.fromTime}`);
-      const eventTimestamp = BigInt(Math.floor(dateObj.getTime() / 1000));
+      const eventTimestampSec = Math.floor(dateObj.getTime() / 1000);
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (!Number.isFinite(eventTimestampSec) || eventTimestampSec < nowSec) {
+        setError("Event date/time must be today or later (future).");
+        setTxInProgress(false);
+        return;
+      }
+      const eventTimestamp = BigInt(eventTimestampSec);
 
       const toWei = (value: string): bigint => {
         const WEI_PER_ETH = BigInt("1000000000000000000");
@@ -694,6 +702,7 @@ function CreateEventForm({ onClose, onAfterCreate }: CreateEventFormProps) {
             required
             value={form.date}
             onChange={handleChange}
+            min={new Date().toISOString().slice(0, 10)}
           />
         </div>
       </div>

@@ -87,8 +87,15 @@ export default function LandingPage() {
           ticketsSold: toNum(e.ticketsSold),
           imageUrl: e.imageUrl,
         }));
-        const latestThree = [...mapped]
-          .sort((a, b) => b.date - a.date)
+        const nowSec = Math.floor(Date.now() / 1000);
+        const liveWindowSec = 60 * 60 * 6; // 6 hours window for "current"
+        // Show current (live) + upcoming events
+        const currentAndUpcoming = mapped.filter(
+          (e) =>
+            e.date >= nowSec || (e.date <= nowSec && nowSec < e.date + liveWindowSec)
+        );
+        const latestThree = [...currentAndUpcoming]
+          .sort((a, b) => a.date - b.date)
           .slice(0, 3);
         if (!cancelled) setEvents(latestThree);
       } catch (e) {
@@ -351,123 +358,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-muted/30">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <Ticket className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-xl font-bold">ORAMA</span>
-              </div>
-              <p className="text-muted-foreground">
-                Secure, transparent NFT-based event ticketing powered by
-                blockchain technology.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Platform</h3>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>
-                  <Link
-                    href="#features"
-                    className="hover:text-foreground transition-colors"
-                  >
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#events"
-                    className="hover:text-foreground transition-colors"
-                  >
-                    Events
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/auth"
-                    className="hover:text-foreground transition-colors"
-                  >
-                    Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/marketplace"
-                    className="hover:text-foreground transition-colors"
-                  >
-                    Marketplace
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Resources</h3>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>
-                  <Link
-                    href="/about"
-                    className="hover:text-foreground transition-colors flex items-center gap-2"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Documentation
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-foreground transition-colors flex items-center gap-2"
-                  >
-                    <Github className="w-4 h-4" />
-                    GitHub
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-foreground transition-colors flex items-center gap-2"
-                  >
-                    <Mail className="w-4 h-4" />
-                    Contact
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Connect</h3>
-              <div className="flex space-x-4">
-                <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Twitter className="w-5 h-5" />
-                </Link>
-                <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Linkedin className="w-5 h-5" />
-                </Link>
-                <Link
-                  href="#"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Github className="w-5 h-5" />
-                </Link>
-              </div>
-            </div>
-          </div>
           <div className="border-t border-border mt-8 pt-8 text-center text-muted-foreground">
             <p>
               &copy; 2024 ORAMA. All rights reserved. Built with blockchain
               technology.
             </p>
           </div>
-        </div>
-      </footer>
     </div>
   );
 }

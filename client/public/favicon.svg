@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ORAMA Events">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
+  <rect x="12" y="18" width="40" height="30" rx="6" fill="#FFFFFF" opacity="0.96"/>
+  <rect x="12" y="18" width="40" height="9" rx="6" fill="#7C3AED" opacity="0.92"/>
+  <circle cx="22" cy="18" r="3" fill="#FFFFFF"/>
+  <circle cx="42" cy="18" r="3" fill="#FFFFFF"/>
+  <g fill="#7C3AED" opacity="0.85">
+    <circle cx="22" cy="32" r="2"/>
+    <circle cx="30" cy="32" r="2"/>
+    <circle cx="38" cy="32" r="2"/>
+    <circle cx="22" cy="40" r="2"/>
+    <circle cx="30" cy="40" r="2"/>
+  </g>
+  <g transform="translate(36,37)">
+    <path d="M4 2h14a2 2 0 0 1 2 2v3a3 3 0 0 0 0 6v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-3a3 3 0 0 0 0-6V4a2 2 0 0 1 2-2z" fill="#F59E0B"/>
+    <rect x="6.5" y="6.5" width="9" height="1.5" rx="0.75" fill="#FFFFFF" opacity="0.9"/>
+    <rect x="6.5" y="9.5" width="7" height="1.5" rx="0.75" fill="#FFFFFF" opacity="0.9"/>
+  </g>
+</svg>

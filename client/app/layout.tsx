@@ -12,10 +12,15 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ORAMA - Secure NFT Event Ticketing",
+  title: "ORAMA - NFT Event Ticketing",
   description:
     "Blockchain-powered NFT ticketing platform for secure, transparent event management",
   generator: "v0.app",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -26,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/favicon.svg" />
         <link
           rel="preconnect"
           href="https://11155111.rpc.thirdweb.com"

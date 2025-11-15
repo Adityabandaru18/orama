@@ -127,7 +127,9 @@ export function UserDashboard() {
   const [events, setEvents] = useState<ChainEvent[]>([]);
   const [eventsError, setEventsError] = useState<string>("");
   const [reloadKey, setReloadKey] = useState(0);
-  const [purchasedEventIds, setPurchasedEventIds] = useState<Set<number>>(new Set());
+  const [purchasedEventIds, setPurchasedEventIds] = useState<Set<number>>(
+    new Set()
+  );
 
   useEffect(() => {
     async function loadEvents() {
@@ -198,13 +200,17 @@ export function UserDashboard() {
           params: [role, account.address],
         });
         if (!cancelled && !ok) {
-          try { alert("Access denied for this wallet"); } catch {}
+          try {
+            alert("Access denied for this wallet");
+          } catch {}
           router.replace("/");
         }
       } catch {}
     }
     guard();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [account?.address, router]);
 
   const filteredEvents = useMemo(() => {
@@ -225,7 +231,8 @@ export function UserDashboard() {
         try {
           res = await readAny({
             contract,
-            method: "function getTicketsOf(address user) view returns (uint256[])",
+            method:
+              "function getTicketsOf(address user) view returns (uint256[])",
             params: [account.address],
           });
         } catch {
@@ -252,7 +259,9 @@ export function UserDashboard() {
         );
         const eventIdsRaw = await Promise.all(eventIdReads);
         const eventIds = new Set<number>(
-          eventIdsRaw.map((v: any) => Number(v)).filter((n) => Number.isFinite(n) && n > 0)
+          eventIdsRaw
+            .map((v: any) => Number(v))
+            .filter((n) => Number.isFinite(n) && n > 0)
         );
         setPurchasedEventIds(eventIds);
       } catch {
@@ -344,6 +353,11 @@ function formatTicketCode(ticketId: number): string {
   return `ED${base.padStart(6, "0")}`;
 }
 
+function buildTicketQrData(ticketId: number, eventId?: number): string {
+  // Encode friendly ticket code (e.g., ED000123) for better UX
+  return formatTicketCode(ticketId);
+}
+
 function MyTicketsTab({ reloadKey }: { reloadKey: number }) {
   const account = useActiveAccount();
   const [tickets, setTickets] = useState<number[]>([]);
@@ -363,6 +377,14 @@ function MyTicketsTab({ reloadKey }: { reloadKey: number }) {
       used?: boolean;
     }[]
   >([]);
+  const usedCount = useMemo(
+    () => ticketCards.filter((t) => Boolean(t.used)).length,
+    [ticketCards]
+  );
+  const activeCount = useMemo(
+    () => Math.max(0, tickets.length - usedCount),
+    [tickets.length, usedCount]
+  );
 
   useEffect(() => {
     async function load() {
@@ -534,7 +556,7 @@ function MyTicketsTab({ reloadKey }: { reloadKey: number }) {
             <Ticket className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{tickets.length}</div>
+            <div className="text-2xl font-bold">{activeCount}</div>
             <p className="text-xs text-muted-foreground">Ready to use</p>
           </CardContent>
         </Card>
@@ -544,8 +566,8 @@ function MyTicketsTab({ reloadKey }: { reloadKey: number }) {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Past events</p>
+            <div className="text-2xl font-bold">{usedCount}</div>
+            <p className="text-xs text-muted-foreground">Verified at entry</p>
           </CardContent>
         </Card>
         <Card>
@@ -598,6 +620,32 @@ function MyTicketsTab({ reloadKey }: { reloadKey: number }) {
                       "https://source.unsplash.com/800x400/?ticket";
                   }}
                 />
+                {/* Status overlay on image */}
+                <div className="absolute top-2 left-2 flex gap-2">
+                  {(() => {
+                    const now = Math.floor(Date.now() / 1000);
+                    const start = t.date || 0;
+                    const liveWindowSec = 60 * 60 * 6; // 6 hours window
+                    const isUpcoming = now < start;
+                    const isLive = now >= start && now < start + liveWindowSec;
+                    const isCompleted = now >= start + liveWindowSec;
+                    if (isLive) {
+                      return (
+                        <Badge className="bg-green-600 text-white">
+                          Live now
+                        </Badge>
+                      );
+                    }
+                    if (isCompleted) {
+                      return <Badge variant="secondary">Event completed</Badge>;
+                    }
+                    return (
+                      <Badge className="bg-indigo-600 text-white">
+                        Upcoming
+                      </Badge>
+                    );
+                  })()}
+                </div>
               </div>
               <CardHeader>
                 <CardTitle className="text-lg">{t.name}</CardTitle>
@@ -620,7 +668,12 @@ function MyTicketsTab({ reloadKey }: { reloadKey: number }) {
                     ) : null}
                   </span>
                   {t.used ? (
-                    <Badge className="bg-green-100 text-green-700" variant="secondary">Verified</Badge>
+                    <Badge
+                      className="bg-green-100 text-green-700"
+                      variant="secondary"
+                    >
+                      Verified
+                    </Badge>
                   ) : typeof t.priceWei !== "undefined" ? (
                     <span className="font-semibold text-primary">
                       {Number(t.priceWei) / 1e18} ETH
@@ -637,7 +690,9 @@ function MyTicketsTab({ reloadKey }: { reloadKey: number }) {
                       <DialogTrigger asChild>
                         <Button
                           className="w-full bg-green-600 hover:bg-green-700 text-white"
-                          disabled={!t.qr}
+                          disabled={
+                            Math.floor(Date.now() / 1000) > (t.date || 0)
+                          }
                         >
                           Show QR
                         </Button>
@@ -649,42 +704,22 @@ function MyTicketsTab({ reloadKey }: { reloadKey: number }) {
                             Ticket #{t.ticketId} • {t.name}
                           </DialogDescription>
                         </DialogHeader>
-                        {Date.now() / 1000 >= (t.date || 0) && (
-                          <div className="text-xs text-muted-foreground text-center -mt-2 mb-2 flex items-center justify-center gap-2">
-                            <span>Ticket Code:</span>
-                            <span className="font-mono">{formatTicketCode(t.ticketId)}</span>
-                            <CopyButton text={formatTicketCode(t.ticketId)} />
+                        {Date.now() / 1000 < (t.date || 0) ? (
+                          <div className="text-sm text-muted-foreground text-center py-6">
+                            QR not activated yet. It will be available at the
+                            event time.
                           </div>
-                        )}
-                        {t.qr ? (
-                          Date.now() / 1000 >= (t.date || 0) ? (
-                            <img
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-                                t.qr
-                              )}`}
-                              alt="Ticket QR"
-                              className="mx-auto"
-                            />
-                          ) : (
-                            <div className="text-sm text-muted-foreground text-center py-6">
-                              QR not activated yet. It will be available at the
-                              event time.
-                            </div>
-                          )
+                        ) : Math.floor(Date.now() / 1000) > (t.date || 0) ? (
+                          <div className="text-sm text-muted-foreground text-center py-6">
+                            Event completed. QR is no longer active.
+                          </div>
                         ) : (
                           <div className="text-sm text-muted-foreground text-center py-6">
-                            QR unavailable for this ticket.
+                            QR currently unavailable.
                           </div>
                         )}
                       </DialogContent>
                     </Dialog>
-                    {Date.now() / 1000 >= (t.date || 0) && (
-                      <div className="mt-2 text-xs text-muted-foreground text-center flex items-center justify-center gap-2">
-                        <span>Ticket Code:</span>
-                        <span className="font-mono">{formatTicketCode(t.ticketId)}</span>
-                        <CopyButton text={formatTicketCode(t.ticketId)} />
-                      </div>
-                    )}
                   </>
                 )}
               </CardContent>
@@ -841,7 +876,12 @@ function EventsTab({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {events.map((event) => (
-            <EventCard key={event.id} event={event} purchasedEventIds={purchasedEventIds} onPurchased={onPurchased} />
+            <EventCard
+              key={event.id}
+              event={event}
+              purchasedEventIds={purchasedEventIds}
+              onPurchased={onPurchased}
+            />
           ))}
         </div>
       )}
@@ -859,6 +899,7 @@ function EventCard({
   onPurchased: () => void;
 }) {
   const alreadyBought = purchasedEventIds.has(event.id);
+  const isCompleted = Math.floor(Date.now() / 1000) >= (event.date || 0);
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       <div className="bg-muted relative h-56 md:h-64 w-full">
@@ -874,11 +915,30 @@ function EventCard({
               "https://source.unsplash.com/800x400/?event";
           }}
         />
+        {/* Status overlay on image */}
+        <div className="absolute top-2 left-2">
+          {(() => {
+            const now = Math.floor(Date.now() / 1000);
+            const start = event.date || 0;
+            const liveWindowSec = 60 * 60 * 6; // 6 hours window
+            const isUpcoming = now < start;
+            const isLive = now >= start && now < start + liveWindowSec;
+            const isCompleted = now >= start + liveWindowSec;
+            if (isLive) {
+              return (
+                <Badge className="bg-green-600 text-white">Live now</Badge>
+              );
+            }
+            if (isCompleted) {
+              return <Badge variant="secondary">Completed</Badge>;
+            }
+            return <Badge className="bg-indigo-600 text-white">Upcoming</Badge>;
+          })()}
+        </div>
       </div>
       <CardHeader>
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg">{event.name}</CardTitle>
-          <Badge variant="outline">General</Badge>
         </div>
         <CardDescription className="space-y-1">
           <div className="flex items-center gap-2 text-sm">
@@ -893,7 +953,11 @@ function EventCard({
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center mb-4">
-          <span className="text-lg font-semibold text-primary">
+          <span
+            className={`text-lg font-semibold ${
+              isCompleted ? "text-muted-foreground" : "text-primary"
+            }`}
+          >
             {Number(event.ticketPriceWei) / 1e18} ETH
           </span>
           <span className="text-sm text-muted-foreground">
@@ -901,7 +965,11 @@ function EventCard({
             {event.ticketSupply} available
           </span>
         </div>
-        {alreadyBought ? (
+        {isCompleted ? (
+          <Button className="w-full" variant="outline" disabled>
+            Event completed
+          </Button>
+        ) : alreadyBought ? (
           <Button className="w-full" variant="outline" disabled>
             Already purchased
           </Button>
@@ -968,6 +1036,11 @@ function PurchaseFlow({
 
   function onBuy() {
     setError("");
+    const now = Math.floor(Date.now() / 1000);
+    if (now >= (event.date || 0)) {
+      setError("This event is completed. Purchasing is disabled.");
+      return;
+    }
     if (!account) {
       setError("Please connect your wallet.");
       return;

@@ -16,7 +16,6 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
   const router = useRouter();
   const menuItems = [
     { id: "overview", label: "Overview", icon: Home },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
   ]
 
   return (

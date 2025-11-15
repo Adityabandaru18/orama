@@ -76,6 +76,8 @@ export function VerifierDashboard() {
     reason?: string;
   }>({ open: false });
   const videoRef = useRef<HTMLVideoElement>(null);
+  const scanIntervalRef = useRef<number | null>(null);
+  const detectorRef = useRef<any>(null);
 
   const shortAddr = useMemo(() => {
     const a = account?.address;
@@ -93,6 +95,38 @@ export function VerifierDashboard() {
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+      }
+
+      // Try native BarcodeDetector for QR codes
+      const BD: any = (globalThis as any).BarcodeDetector;
+      if (BD) {
+        try {
+          detectorRef.current = new BD({ formats: ["qr_code"] });
+        } catch {
+          detectorRef.current = null;
+        }
+      }
+
+      if (detectorRef.current && videoRef.current) {
+        // Poll detection periodically
+        const tick = async () => {
+          if (!detectorRef.current || !videoRef.current) return;
+          try {
+            const results = await detectorRef.current.detect(videoRef.current);
+            if (Array.isArray(results) && results.length > 0) {
+              const raw =
+                (results[0] && (results[0].rawValue || results[0].rawValue)) ||
+                "";
+              if (raw) {
+                await handleDetectedText(String(raw));
+                stopScanning();
+                return;
+              }
+            }
+          } catch {}
+        };
+        // Use a modest interval to reduce CPU
+        scanIntervalRef.current = window.setInterval(tick, 500);
       }
     } catch (error) {
       console.error("Camera access denied:", error);
@@ -138,6 +172,10 @@ export function VerifierDashboard() {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach((track) => track.stop());
     }
+    if (scanIntervalRef.current) {
+      window.clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
   };
 
   const parseQrPayload = (qr: string) => {
@@ -168,6 +206,95 @@ export function VerifierDashboard() {
       return Number(s);
     }
     return null;
+  };
+
+  const formatTicketCode = (ticketId: number): string => {
+    const base = ticketId.toString(36).toUpperCase();
+    return `ED${base.padStart(6, "0")}`;
+  };
+
+  const extractTicketIdFromQrText = (raw: string): number | null => {
+    const s = String(raw).trim();
+    // Direct numeric
+    if (/^[0-9]+$/.test(s)) return Number(s);
+    // ED code
+    const ed = decodeTicketCode(s);
+    if (ed !== null) return ed;
+    // ETKT payloads
+    if (s.startsWith("ETKT")) {
+      // Prefer tid=
+      const tidMatch = s.match(/(?:\||^)tid=([0-9]+)/i);
+      if (tidMatch && tidMatch[1]) {
+        const n = Number(tidMatch[1]);
+        return Number.isFinite(n) ? n : null;
+      }
+    }
+    return null;
+  };
+
+  const resolveTicketIdFromEventAndBuyer = async (
+    eventId: number,
+    buyer: string
+  ): Promise<number | null> => {
+    try {
+      // get buyer tickets
+      const tickets: any = await readContract({
+        contract,
+        method: "function getTicketsOf(address user) view returns (uint256[])",
+        params: [buyer],
+      });
+      const ids: number[] = Array.isArray(tickets)
+        ? tickets.map((x: any) => Number(x))
+        : [];
+      if (!ids.length) return null;
+      // find first matching unused ticket for event
+      for (const id of ids) {
+        const evId: any = await readContract({
+          contract,
+          method: "function ticketToEvent(uint256) view returns (uint256)",
+          params: [BigInt(id)],
+        });
+        if (Number(evId) !== Number(eventId)) continue;
+        const used: any = await readContract({
+          contract,
+          method: "function checkTicketUsed(uint256 ticketId) view returns (bool)",
+          params: [BigInt(id)],
+        });
+        if (Boolean(used)) continue;
+        return id;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleDetectedText = async (text: string) => {
+    const raw = String(text).trim().toUpperCase();
+    // 1) If the QR already contains a friendly code, keep it as-is
+    if (/^ED[A-Z0-9]+$/.test(raw)) {
+      setManualTicketId(raw);
+      return;
+    }
+    // 2) Try to extract a numeric ticketId and convert to friendly code
+    const directId = extractTicketIdFromQrText(raw);
+    if (directId !== null) {
+      setManualTicketId(formatTicketCode(Number(directId)));
+      return;
+    }
+    // 3) Fallback: legacy ETKT payload with event+buyer
+    if (text.startsWith("ETKT")) {
+      const { eventId, buyer } = parseQrPayload(text);
+      if (eventId && buyer) {
+        const resolved = await resolveTicketIdFromEventAndBuyer(eventId, buyer);
+        if (resolved !== null) {
+          setManualTicketId(formatTicketCode(Number(resolved)));
+          return;
+        }
+      }
+    }
+    // 4) Invalid
+    setFailureModal({ open: true, reason: "The ticket is invalid" });
   };
 
   const verifyOnChain = async (ticketIdNum: number) => {
@@ -424,25 +551,28 @@ export function VerifierDashboard() {
               )}
             </div>
 
-            {/* Scan Button */}
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={isScanning ? stopScanning : startScanning}
-              disabled={isScanning}
-            >
-              {isScanning ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Scanning...
-                </>
-              ) : (
-                <>
-                  <Camera className="w-4 h-4 mr-2" />
-                  Start Scan
-                </>
-              )}
-            </Button>
+            {/* Scan Controls */}
+            <div className="flex gap-2">
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={startScanning}
+                disabled={isScanning}
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Start Scan
+              </Button>
+              <Button
+                className="w-full"
+                size="lg"
+                variant="outline"
+                onClick={stopScanning}
+                disabled={!isScanning}
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Stop Scan
+              </Button>
+            </div>
 
             {/* Manual Entry */}
             <div className="space-y-2">
