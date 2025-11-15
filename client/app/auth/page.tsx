@@ -12,8 +12,8 @@ import {
   useReadContract,
   useSendTransaction,
 } from "thirdweb/react";
-import dynamic from "next/dynamic";
-const ConnectButtonDynamic = dynamic(
+import NextDynamic from "next/dynamic";
+const ConnectButtonDynamic = NextDynamic(
   () => import("thirdweb/react").then((m) => m.ConnectButton),
   { ssr: false }
 );
